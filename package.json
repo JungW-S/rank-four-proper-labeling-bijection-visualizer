@@ -1,0 +1,11 @@
+{
+  "name": "rank-four-proper-labeling-bijection-visualizer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Interactive visualization of the global E_n to D_n rank-four proper-labeling bijection.",
+  "scripts": {
+    "start": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "test": "node --test tests/bijection.test.mjs tests/grid-bijection.test.mjs"
+  }
+}

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="전체 square-grid edge labeling E_n과 D_n 사이의 interface-preserving bijection 시각화"
+    />
+    <title>Rank-four Eₙ ↔ Dₙ Bijection Visualizer</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero compact-hero">
+        <div>
+          <h1><i>E</i><sub>n</sub> ↔ <i>D</i><sub>n</sub></h1>
+          <p class="lead">
+            <b>E<sub>n</sub></b>: 모든 face proper
+            <span>→</span>
+            <b>D<sub>n</sub></b>: 대각 face proper, 나머지는 strand
+          </p>
+        </div>
+        <div class="live-status" id="liveStatus"><span></span> 입력 E<sub>n</sub> 유효</div>
+      </header>
+
+      <nav class="controls panel" aria-label="시각화 조작">
+        <label class="select-control" for="nSelect">
+          <span>격자 크기</span>
+          <select id="nSelect">
+            <option value="1">n = 1</option>
+            <option value="2">n = 2</option>
+            <option value="3" selected>n = 3</option>
+            <option value="4">n = 4</option>
+            <option value="5">n = 5</option>
+          </select>
+        </label>
+        <div class="control-group grow">
+          <button class="button primary" id="randomButton" type="button">↻ 랜덤 E<sub>n</sub></button>
+          <button class="button" id="editButton" type="button">✎ 값 입력</button>
+          <button class="button editor-only" id="blankButton" type="button" hidden>빈 격자</button>
+          <button class="button editor-only" id="cancelEditButton" type="button" hidden>편집 취소</button>
+          <button class="button" id="copyLinkButton" type="button">현재 bijection 링크 복사</button>
+          <button class="button" id="resetButton" type="button">처음부터</button>
+        </div>
+        <div class="control-group transport">
+          <button class="icon-button" id="previousButton" type="button" aria-label="이전 단계">←</button>
+          <button class="button" id="playButton" type="button">자동 재생</button>
+          <button class="icon-button" id="nextButton" type="button" aria-label="다음 단계">→</button>
+        </div>
+      </nav>
+
+      <section class="step-panel panel">
+        <div class="step-copy">
+          <p class="eyebrow">PROCESS <span id="stepCounter">1 / 5</span></p>
+          <h2 id="stepTitle">Eₙ 입력</h2>
+          <p id="stepDescription">왼쪽 입력을 바탕으로 오른쪽 작업 canvas에 Dₙ을 실제 재귀 순서대로 만듭니다.</p>
+          <div class="process-meta" id="processMeta">
+            <span id="operationBadge">입력 확인</span>
+            <span id="changeBadge">오른쪽 canvas는 아직 비어 있음</span>
+          </div>
+          <details class="operation-details" id="operationDetails" hidden>
+            <summary id="operationSummary">이번 반환 내부 계산 보기</summary>
+            <div id="operationDetail"></div>
+          </details>
+        </div>
+        <div class="step-track" id="stepTrack" role="tablist" aria-label="전역 bijection 단계"></div>
+      </section>
+
+      <main>
+        <section class="grid-workbench">
+          <article class="grid-card panel">
+            <header class="grid-card-header">
+              <div>
+                <p class="eyebrow">SOURCE</p>
+                <h2 id="sourceTitle">E<sub>3</sub> — all proper</h2>
+              </div>
+              <span class="set-check" id="sourceCheck">9 / 9 proper</span>
+            </header>
+            <div class="edge-editor" id="edgeEditor" hidden>
+              <span class="selected-edge-label" id="selectedEdgeLabel">격자에서 edge를 선택하세요</span>
+              <div class="value-palette" aria-label="선택한 edge의 값">
+                <button type="button" data-edge-value="0">1</button>
+                <button type="button" data-edge-value="1">2</button>
+                <button type="button" data-edge-value="2">3</button>
+                <button type="button" data-edge-value="3">4</button>
+                <button type="button" data-edge-value="">지우기</button>
+              </div>
+              <span class="editor-hint">edge 선택 후 1–4 입력 · Delete로 지우기</span>
+            </div>
+            <div class="grid-svg-wrap">
+              <svg id="sourceGrid" class="full-grid" role="img" aria-label="E_n 전체 edge labeling"></svg>
+            </div>
+          </article>
+
+          <div class="transform-column">
+            <span class="transform-name" id="transformName">입력</span>
+            <span class="transform-arrow">⟶</span>
+            <span class="transform-note" id="transformNote">아직 변환 전</span>
+          </div>
+
+          <article class="grid-card target panel">
+            <header class="grid-card-header">
+              <div>
+                <p class="eyebrow" id="targetEyebrow">WORKING CANVAS</p>
+                <h2 id="targetTitle">출력 canvas — 아직 비어 있음</h2>
+              </div>
+              <span class="set-check pending" id="targetCheck">구성 대기</span>
+            </header>
+            <div class="grid-svg-wrap">
+              <svg id="targetGrid" class="full-grid" role="img" aria-label="D_n 생성 과정 작업 격자"></svg>
+            </div>
+          </article>
+        </section>
+
+        <details class="proof-drawer panel">
+          <summary>
+            <span><b>증명 세부</b> · diagonal interface, half-region recursion, local diamond</span>
+            <span class="drawer-hint">펼쳐 보기</span>
+          </summary>
+          <div class="proof-drawer-body">
+        <section class="factorization panel detail-section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">FIXED DIAGONAL INTERFACE</p>
+              <h2>fiberwise factorization</h2>
+            </div>
+            <span class="lock-badge">🔒 대각 face의 모든 edge를 pointwise 고정</span>
+          </header>
+          <div class="factor-equation">
+            <div class="factor-block">
+              <strong>E<sub>n</sub>(I)</strong>
+              <span>B<sup>+</sup><sub>n−1</sub>(η<sup>+</sup>) × B<sup>−</sup><sub>n−1</sub>(η<sup>−</sup>)</span>
+            </div>
+            <div class="factor-map">
+              <b>β̃<sup>+</sup> × β̃<sup>−</sup></b>
+              <span>각 반영역에서 proper → strand</span>
+            </div>
+            <div class="factor-block">
+              <strong>D<sub>n</sub>(I)</strong>
+              <span>A<sup>+</sup><sub>n−1</sub>(η<sup>+</sup>) × A<sup>−</sup><sub>n−1</sub>(η<sup>−</sup>)</span>
+            </div>
+          </div>
+          <div class="interface-content">
+            <div>
+              <h3>대각 tuple I<sub>i</sub>=(W,N,E,S)</h3>
+              <div class="tuple-list" id="interfaceTuples"></div>
+            </div>
+            <div>
+              <h3>ordered boundary η<sup>+</sup>=(N<sub>i</sub>,W<sub>i+1</sub>)</h3>
+              <div class="tuple-list" id="etaPlus"></div>
+            </div>
+            <div>
+              <h3>ordered boundary η<sup>−</sup>=(E<sub>i</sub>,S<sub>i+1</sub>)</h3>
+              <div class="tuple-list" id="etaMinus"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="half-grid detail-section">
+          <article class="half-card panel plus-card">
+            <header>
+              <div>
+                <p class="eyebrow">NORTHWEST · y &gt; x</p>
+                <h2>β̃<sup>+</sup>: B<sup>+</sup> → A<sup>+</sup></h2>
+              </div>
+              <span class="trace-count" id="plusTraceCount"></span>
+            </header>
+            <p>입력 순서는 south/east, 출력 orientation은 west/north입니다.</p>
+            <div class="row-preview" id="plusRows"></div>
+          </article>
+          <article class="half-card panel minus-card">
+            <header>
+              <div>
+                <p class="eyebrow">SOUTHEAST · x &gt; y</p>
+                <h2>β̃<sup>−</sup>: B<sup>−</sup> → A<sup>−</sup></h2>
+              </div>
+              <span class="trace-count" id="minusTraceCount"></span>
+            </header>
+            <p>입력 순서는 west/north, 출력 orientation은 south/east입니다.</p>
+            <div class="row-preview" id="minusRows"></div>
+          </article>
+        </section>
+
+        <section class="local-engine panel detail-section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">INSIDE THE RECURSION</p>
+              <h2>선택된 two-row diamond call</h2>
+            </div>
+            <div class="local-controls">
+              <button class="icon-button small" id="previousDiamond" type="button">←</button>
+              <span id="diamondCounter">0 / 0</span>
+              <button class="icon-button small" id="nextDiamond" type="button">→</button>
+            </div>
+          </header>
+          <p class="local-note">
+            이것은 두 집합 자체가 아니라 β̃를 구성하는 재귀적 α 내부의 국소 involution입니다.
+          </p>
+          <div id="diamondDetail" class="diamond-detail"></div>
+        </section>
+
+        <section class="verification panel detail-section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">GLOBAL ASSERTIONS</p>
+              <h2>전체 bijection 검증</h2>
+            </div>
+            <span class="result-badge" id="resultBadge">진행 중</span>
+          </header>
+          <div class="check-grid" id="checkGrid"></div>
+        </section>
+          </div>
+        </details>
+      </main>
+
+      <footer>
+        <span>내부 라벨은 F₂²로 계산하고, 전체 grid에는 1,2,3,4로 표시합니다.</span>
+        <span id="configurationId"></span>
+      </footer>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./src/app.mjs"></script>
+  </body>
+</html>
