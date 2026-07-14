@@ -51,6 +51,23 @@ for (let attempt = 0; attempt < 50; attempt += 1) {
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
 
+const explainer = await evaluate(`(() => ({
+  title: document.querySelector("#cornerExplainerTitle").textContent,
+  rows: document.querySelectorAll(".pair-rule").length,
+  highlightedRows: document.querySelectorAll(".pair-rule.current").length,
+  inputColors: document.querySelectorAll("#cornerInput .digit").length,
+  shape: document.querySelector("#cornerShape").textContent,
+  proofHidden: document.querySelector(".proof-drawer").hidden,
+  cornerMarked: [...document.querySelectorAll("#sourceGrid text")].some((node) => node.textContent === "첫 칸"),
+}))()`);
+assert.match(explainer.title, /이 한 칸만/);
+assert.equal(explainer.rows, 6);
+assert.equal(explainer.highlightedRows, 1);
+assert.equal(explainer.inputColors, 4);
+assert.match(explainer.shape, /ELBOW|STRAIGHT/);
+assert.equal(explainer.proofHidden, true);
+assert.equal(explainer.cornerMarked, true);
+
 const invalid = await evaluate(`(() => {
   document.querySelector("#resetButton").click();
   if (document.querySelector("#edgeEditor").hidden) document.querySelector("#editButton").click();
@@ -67,7 +84,7 @@ const invalid = await evaluate(`(() => {
     invalidFaces: document.querySelectorAll("#sourceGrid .input-invalid").length,
   };
 })()`);
-assert.match(invalid.status, /충돌/);
+assert.match(invalid.status, /중복/);
 assert.match(invalid.target, /기다리는 중/);
 assert.equal(invalid.nextDisabled, true);
 assert.equal(invalid.playDisabled, true);
@@ -80,7 +97,7 @@ const restored = await evaluate(`(() => {
     editLabel: document.querySelector("#editButton").textContent,
   };
 })()`);
-assert.match(restored.status, /proper/);
+assert.match(restored.status, /칸 OK/);
 assert.match(restored.editLabel, /입력 완료/);
 
 const explained = await evaluate(`(() => {
@@ -104,9 +121,10 @@ const explained = await evaluate(`(() => {
 assert.match(explained.changedLabel, /→/);
 assert.equal(explained.hidden, false);
 assert.equal(explained.open, true);
-assert.match(explained.summary, /α-base/);
-assert.match(explained.summary, /diamond Φ/);
-assert.match(explained.detail, /마지막 원인/);
+assert.match(explained.summary, /한 칸 표/);
+assert.match(explained.summary, /이웃과 맞추기/);
+assert.doesNotMatch(explained.summary, /α|diamond|Φ/);
+assert.match(explained.detail, /마지막으로/);
 
 const cancelRecovery = await evaluate(`(() => {
   document.querySelector("#resetButton").click();

@@ -16,9 +16,9 @@
         <div>
           <h1><i>E</i><sub>n</sub> ↔ <i>D</i><sub>n</sub></h1>
           <p class="lead">
-            <b>E<sub>n</sub></b>: 모든 face proper
+            <b>입력</b>: 모든 칸의 네 변이 1,2,3,4
             <span>→</span>
-            <b>D<sub>n</sub></b>: 대각 face proper, 나머지는 strand
+            <b>출력</b>: 대각선 칸은 유지, 나머지는 두 줄로 연결
           </p>
         </div>
         <div class="live-status" id="liveStatus"><span></span> 입력 E<sub>n</sub> 유효</div>
@@ -52,15 +52,15 @@
 
       <section class="step-panel panel">
         <div class="step-copy">
-          <p class="eyebrow">PROCESS <span id="stepCounter">1 / 5</span></p>
+          <p class="eyebrow">만드는 순서 <span id="stepCounter">1 / 5</span></p>
           <h2 id="stepTitle">Eₙ 입력</h2>
-          <p id="stepDescription">왼쪽 입력을 바탕으로 오른쪽 작업 canvas에 Dₙ을 실제 재귀 순서대로 만듭니다.</p>
+          <p id="stepDescription">왼쪽 입력을 오른쪽 결과로 한 단계씩 바꿉니다.</p>
           <div class="process-meta" id="processMeta">
             <span id="operationBadge">입력 확인</span>
-            <span id="changeBadge">오른쪽 canvas는 아직 비어 있음</span>
+            <span id="changeBadge">오른쪽 결과는 아직 비어 있음</span>
           </div>
           <details class="operation-details" id="operationDetails" hidden>
-            <summary id="operationSummary">이번 반환 내부 계산 보기</summary>
+            <summary id="operationSummary">이번 단계에서 무엇이 바뀌었나</summary>
             <div id="operationDetail"></div>
           </details>
         </div>
@@ -72,10 +72,10 @@
           <article class="grid-card panel">
             <header class="grid-card-header">
               <div>
-                <p class="eyebrow">SOURCE</p>
-                <h2 id="sourceTitle">E<sub>3</sub> — all proper</h2>
+                <p class="eyebrow">입력</p>
+                <h2 id="sourceTitle">E<sub>3</sub> — 모든 칸 OK</h2>
               </div>
-              <span class="set-check" id="sourceCheck">9 / 9 proper</span>
+              <span class="set-check" id="sourceCheck">9 / 9 칸 OK</span>
             </header>
             <div class="edge-editor" id="edgeEditor" hidden>
               <span class="selected-edge-label" id="selectedEdgeLabel">격자에서 edge를 선택하세요</span>
@@ -102,10 +102,10 @@
           <article class="grid-card target panel">
             <header class="grid-card-header">
               <div>
-                <p class="eyebrow" id="targetEyebrow">WORKING CANVAS</p>
-                <h2 id="targetTitle">출력 canvas — 아직 비어 있음</h2>
+                <p class="eyebrow" id="targetEyebrow">결과</p>
+                <h2 id="targetTitle">오른쪽 결과 — 아직 비어 있음</h2>
               </div>
-              <span class="set-check pending" id="targetCheck">구성 대기</span>
+              <span class="set-check pending" id="targetCheck">기다리는 중</span>
             </header>
             <div class="grid-svg-wrap">
               <svg id="targetGrid" class="full-grid" role="img" aria-label="D_n 생성 과정 작업 격자"></svg>
@@ -113,7 +113,78 @@
           </article>
         </section>
 
-        <details class="proof-drawer panel">
+        <section class="corner-explainer panel" aria-labelledby="cornerExplainerTitle">
+          <header class="corner-explainer-header">
+            <div>
+              <p class="eyebrow">맨 왼쪽 위 한 칸</p>
+              <h2 id="cornerExplainerTitle">처음에는 이 한 칸만 보고 정합니다</h2>
+              <p>이 칸의 <b>왼쪽·위 숫자</b>를 표에서 바꾸고, 오른쪽·아래 숫자는 그대로 둡니다.</p>
+            </div>
+            <span class="corner-scope">첫 번째 칸을 만드는 순간</span>
+          </header>
+
+          <div class="corner-explainer-grid">
+            <article class="corner-live-card">
+              <h3>현재 격자에 그대로 대입</h3>
+              <p class="corner-status" id="cornerStatus">현재 입력을 읽는 중입니다.</p>
+              <div class="corner-flow" id="cornerFlow">
+                <div class="corner-flow-step">
+                  <span>입력 한 칸</span>
+                  <strong class="corner-tuple" id="cornerInput">—</strong>
+                  <small>왼쪽 · 위 · 오른쪽 · 아래</small>
+                </div>
+                <b class="corner-flow-arrow">→</b>
+                <div class="corner-flow-step">
+                  <span>표에서 찾기</span>
+                  <strong class="corner-pair" id="cornerLookup">—</strong>
+                  <small>왼쪽·위만 바꿈</small>
+                </div>
+                <b class="corner-flow-arrow">→</b>
+                <div class="corner-flow-step result">
+                  <span>첫 결과</span>
+                  <strong class="corner-tuple" id="cornerFirstOutput">—</strong>
+                  <small id="cornerShape">계산 대기</small>
+                </div>
+              </div>
+              <p class="corner-explanation" id="cornerExplanation">
+                입력을 완성하면 이 한 칸의 계산을 숫자로 보여줍니다.
+              </p>
+            </article>
+
+            <article class="corner-rule-card">
+              <h3>항상 사용하는 고정표</h3>
+              <p>각 줄은 양방향입니다. 입력 순서를 뒤집으면 결과 순서도 뒤집습니다.</p>
+              <div class="pair-rule-table" aria-label="왼쪽 위 edge 색 변환표">
+                <div class="pair-rule" data-corner-pairs="0-1,2-3">
+                  <span class="rule-pair"><i class="rule-color v0">1</i><i class="rule-color v1">2</i></span><b>↔</b><span class="rule-pair"><i class="rule-color v2">3</i><i class="rule-color v3">4</i></span>
+                </div>
+                <div class="pair-rule" data-corner-pairs="1-0,3-2">
+                  <span class="rule-pair"><i class="rule-color v1">2</i><i class="rule-color v0">1</i></span><b>↔</b><span class="rule-pair"><i class="rule-color v3">4</i><i class="rule-color v2">3</i></span>
+                </div>
+                <div class="pair-rule" data-corner-pairs="0-2,1-3">
+                  <span class="rule-pair"><i class="rule-color v0">1</i><i class="rule-color v2">3</i></span><b>↔</b><span class="rule-pair"><i class="rule-color v1">2</i><i class="rule-color v3">4</i></span>
+                </div>
+                <div class="pair-rule" data-corner-pairs="2-0,3-1">
+                  <span class="rule-pair"><i class="rule-color v2">3</i><i class="rule-color v0">1</i></span><b>↔</b><span class="rule-pair"><i class="rule-color v3">4</i><i class="rule-color v1">2</i></span>
+                </div>
+                <div class="pair-rule" data-corner-pairs="0-3,1-2">
+                  <span class="rule-pair"><i class="rule-color v0">1</i><i class="rule-color v3">4</i></span><b>↔</b><span class="rule-pair"><i class="rule-color v1">2</i><i class="rule-color v2">3</i></span>
+                </div>
+                <div class="pair-rule" data-corner-pairs="3-0,2-1">
+                  <span class="rule-pair"><i class="rule-color v3">4</i><i class="rule-color v0">1</i></span><b>↔</b><span class="rule-pair"><i class="rule-color v2">3</i><i class="rule-color v1">2</i></span>
+                </div>
+              </div>
+              <p class="pair-rule-hint">숫자의 크기는 비교하지 않습니다. 숫자는 네 가지 색의 이름일 뿐입니다.</p>
+            </article>
+          </div>
+
+          <div class="corner-timing-note">
+            <div><b>처음 결정</b><span>이 한 칸 안의 네 숫자만 사용합니다. 주변 칸은 보지 않습니다.</span></div>
+            <div><b>나중 다시 맞춤</b><span>다른 칸을 만들 때 공유 edge가 바뀌면 이 칸도 보라색으로 다시 조정될 수 있습니다.</span></div>
+          </div>
+        </section>
+
+        <details class="proof-drawer panel" hidden aria-hidden="true">
           <summary>
             <span><b>증명 세부</b> · diagonal interface, half-region recursion, local diamond</span>
             <span class="drawer-hint">펼쳐 보기</span>
@@ -215,7 +286,7 @@
       </main>
 
       <footer>
-        <span>내부 라벨은 F₂²로 계산하고, 전체 grid에는 1,2,3,4로 표시합니다.</span>
+        <span>1,2,3,4는 크기가 아니라 네 가지 색의 이름입니다.</span>
         <span id="configurationId"></span>
       </footer>
     </div>

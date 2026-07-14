@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  alphaBasePair,
   cloneGrid,
   createGrid,
   decodeDraftGrid,
@@ -21,6 +22,26 @@ import {
 } from "../src/grid-bijection.mjs";
 
 const V = [0, 1, 2, 3];
+
+{
+  const rules = [
+    [[0, 1], [2, 3]],
+    [[0, 2], [1, 3]],
+    [[0, 3], [1, 2]],
+    [[1, 2], [0, 3]],
+    [[1, 3], [0, 2]],
+    [[2, 3], [0, 1]],
+  ];
+  for (const [[l, v], [expectedL, expectedV]] of rules) {
+    const mapped = alphaBasePair(l, v);
+    assert.deepEqual([mapped.l, mapped.v], [expectedL, expectedV]);
+    const reversed = alphaBasePair(v, l);
+    assert.deepEqual([reversed.l, reversed.v], [expectedV, expectedL]);
+    const recovered = alphaBasePair(mapped.l, mapped.v);
+    assert.deepEqual([recovered.l, recovered.v], [l, v]);
+  }
+  assert.throws(() => alphaBasePair(0, 0));
+}
 
 {
   const blank = createGrid(3);
@@ -50,6 +71,23 @@ const V = [0, 1, 2, 3];
   assert.equal(validValidation.properFaces, 9);
 }
 
+{
+  const singleton = transformEtoD(randomEGrid(1, () => 0));
+  assert.equal(singleton.plus.trace.length, 0);
+  assert.equal(singleton.minus.trace.length, 0);
+
+  const fixture = randomEGrid(3, () => 0);
+  const inputCorner = faceTuple(fixture, 0, 2);
+  assert.deepEqual([inputCorner.W, inputCorner.N], [0, 2]);
+  const firstMapped = alphaBasePair(inputCorner.W, inputCorner.N);
+  assert.deepEqual([firstMapped.l, firstMapped.v], [1, 3]);
+  const fixtureResult = transformEtoD(fixture);
+  const firstCheckpoint = fixtureResult.plus.trace.find(({ type, width }) => type === "beta-complete" && width === 1);
+  assert.deepEqual(firstCheckpoint.targetRows[0][0], { l: firstMapped.l, v: firstMapped.v });
+  const finalCorner = faceTuple(fixtureResult.target, 0, 2);
+  assert.notDeepEqual([finalCorner.W, finalCorner.N], [firstMapped.l, firstMapped.v]);
+}
+
 for (let n = 1; n <= 6; n += 1) {
   for (let sample = 0; sample < 250; sample += 1) {
     const E = randomEGrid(n);
@@ -58,6 +96,12 @@ for (let n = 1; n <= 6; n += 1) {
     assert(validateD(result.target).ok, `image D invalid at n=${n}`);
     assert(interfaceEquals(E, result.target), `interface changed at n=${n}`);
     assert.deepEqual(diagonalInterface(E), diagonalInterface(result.target));
+    if (n >= 2) {
+      const corner = faceTuple(E, 0, n - 1);
+      const mapped = alphaBasePair(corner.W, corner.N);
+      const firstCheckpoint = result.plus.trace.find(({ type, width }) => type === "beta-complete" && width === 1);
+      assert.deepEqual(firstCheckpoint.targetRows[0][0], { l: mapped.l, v: mapped.v });
+    }
     const recovered = transformDtoE(result.target);
     assert(gridsEqual(E, recovered), `round trip failed at n=${n}`);
     assertTraceCheckpoints(E, result, "+");

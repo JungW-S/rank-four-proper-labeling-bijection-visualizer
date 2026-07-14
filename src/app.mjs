@@ -1,5 +1,6 @@
 import { formatLabel } from "./bijection.mjs";
 import {
+  alphaBasePair,
   cloneGrid,
   createGrid,
   decodeDraftGrid,
@@ -20,9 +21,9 @@ import {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const PHASES = [
   { id: "input", short: "입력" },
-  { id: "interface", short: "대각 복사" },
-  { id: "plus", short: "NW 생성" },
-  { id: "minus", short: "SE 생성" },
+  { id: "interface", short: "대각 고정" },
+  { id: "plus", short: "왼쪽 위" },
+  { id: "minus", short: "오른쪽 아래" },
   { id: "complete", short: "완성" },
 ];
 
@@ -60,6 +61,8 @@ const dom = Object.fromEntries(
     "processMeta", "operationBadge", "changeBadge", "operationDetails", "operationSummary",
     "operationDetail", "sourceGrid", "targetGrid", "sourceTitle", "edgeEditor", "selectedEdgeLabel",
     "sourceCheck", "targetCheck", "targetEyebrow", "targetTitle",
+    "cornerStatus", "cornerFlow", "cornerInput", "cornerLookup", "cornerFirstOutput", "cornerShape",
+    "cornerExplanation",
     "transformName", "transformNote", "interfaceTuples", "etaPlus", "etaMinus", "plusTraceCount",
     "minusTraceCount", "plusRows", "minusRows", "previousDiamond", "nextDiamond", "diamondCounter",
     "diamondDetail", "checkGrid", "resultBadge", "configurationId", "toast",
@@ -165,7 +168,7 @@ function toggleEditing() {
     return;
   }
   if (!state.inputValidation.ok) {
-    showToast("모든 edge를 입력하고 각 face의 1–4가 서로 달라야 편집을 완료할 수 있습니다.");
+    showToast("모든 edge를 입력하고 각 칸의 네 숫자가 서로 달라야 입력을 완료할 수 있습니다.");
     return;
   }
   state.editing = false;
@@ -230,16 +233,16 @@ function buildInvalidInputFrame(source, validation) {
   const missing = validation.totalEdges - validation.assignedEdges;
   const invalid = validation.invalidFaces.length;
   const description = invalid
-    ? `${invalid}개 face에서 같은 라벨이 중복됩니다. 붉게 표시된 face의 edge 값을 고치면 변환이 다시 활성화됩니다.`
-    : `${missing}개 edge가 아직 비어 있습니다. 모든 face가 1,2,3,4를 한 번씩 사용하도록 입력하세요.`;
+    ? `${invalid}칸에서 같은 숫자가 중복됩니다. 붉게 표시된 칸을 고치면 변환을 시작할 수 있습니다.`
+    : `${missing}개 edge가 아직 비어 있습니다. 모든 칸이 1,2,3,4를 한 번씩 사용하도록 입력하세요.`;
   return makeFrame({
     phase: "input",
     grid: cloneGrid(source),
     visibleEdges: new Set(),
     title: invalid ? "Eₙ 입력 수정 필요" : "Eₙ 값 직접 입력",
     description,
-    operation: invalid ? `${invalid} faces 충돌` : `${validation.assignedEdges}/${validation.totalEdges} edges 입력`,
-    change: "유효해지면 β 계산 활성화",
+    operation: invalid ? `${invalid}칸 색 중복` : `${validation.assignedEdges}/${validation.totalEdges}개 edge 입력`,
+    change: "입력이 완성되면 변환 시작",
     mapLabel: "입력",
     mapNote: "변환 대기",
   });
@@ -339,7 +342,7 @@ function buildProcessFrames(source, result) {
       grid: cloneGrid(source),
       visibleEdges: new Set(),
       title: "Eₙ 입력",
-      description: "왼쪽의 모든 face는 네 라벨을 한 번씩 쓰는 proper face입니다. 오른쪽은 Dₙ을 만들 작업 canvas입니다.",
+      description: "왼쪽의 모든 칸은 네 변에 1,2,3,4를 한 번씩 사용합니다. 오른쪽에 결과를 한 단계씩 만듭니다.",
       operation: "입력 확인",
       change: "출력 edge 0개",
       mapLabel: "입력",
@@ -349,12 +352,12 @@ function buildProcessFrames(source, result) {
       phase: "interface",
       grid: cloneGrid(source),
       visibleEdges: interfaceEdges,
-      title: "대각 interface I 복사",
-      description: `대각 face ${n}개의 physical edge ${4 * n}개를 출력에 그대로 복사합니다. 이후 어떤 재귀 호출도 이 edge를 바꾸지 않습니다.`,
-      operation: "I를 pointwise 복사",
-      change: `${4 * n} edges 고정`,
-      mapLabel: "I 복사",
-      mapNote: "끝까지 불변",
+      title: "대각선 칸 그대로 복사",
+      description: `대각선 위 ${n}칸의 edge ${4 * n}개를 오른쪽에 그대로 복사합니다. 이 edge들은 끝까지 바뀌지 않습니다.`,
+      operation: "대각선 칸 복사",
+      change: `${4 * n}개 edge 그대로 유지`,
+      mapLabel: "대각 고정",
+      mapNote: "끝까지 그대로",
     }),
   ];
 
@@ -426,11 +429,11 @@ function buildProcessFrames(source, result) {
     grid: cloneGrid(result.target),
     visibleEdges: allGridEdgeKeys(n),
     title: "Dₙ 완성",
-    description: "두 재귀 계산이 같은 작업 canvas를 모두 채웠습니다. 대각 face는 proper이고 모든 비대각 face는 허용된 strand입니다.",
-    operation: "β̃⁺와 β̃⁻ 계산 종료",
-    change: "D→E 역변환까지 확인",
+    description: "오른쪽의 모든 칸이 완성되었습니다. 대각선 칸은 그대로이고, 나머지 칸에는 두 선이 연결되어 있습니다.",
+    operation: "모든 칸 완성",
+    change: "입력으로 되돌아가는 것도 확인",
     mapLabel: "완성",
-    mapNote: "explicit bijection",
+    mapNote: "양방향 확인",
   }));
 
   return frames;
@@ -459,18 +462,18 @@ function makeEmptyHalfFrame(sign, grid, visibleEdges) {
     phase: northwest ? "plus" : "minus",
     grid,
     visibleEdges,
-    title: `${northwest ? "northwest" : "southeast"} 영역 생성`,
-    description: "n=1에서는 strict half-region이 비어 있으므로 이 재귀 map은 identity입니다.",
-    operation: `${northwest ? "NW" : "SE"} · 빈 재귀`,
-    change: "변경 edge 0개",
-    mapLabel: northwest ? "β̃⁺" : "β̃⁻",
+    title: `${northwest ? "왼쪽 위" : "오른쪽 아래"} 영역 만들기`,
+    description: "n=1에는 대각선 밖의 칸이 없어서 추가로 바꿀 것이 없습니다.",
+    operation: "바꿀 칸 없음",
+    change: "변경된 edge 0개",
+    mapLabel: "그대로",
     mapNote: "빈 영역",
   });
 }
 
 function makeBetaFrame({ sign, event, index, total, grid, previous, previousVisible, visibleEdges, primitives, n }) {
   const northwest = sign === "+";
-  const sideName = northwest ? "NW" : "SE";
+  const sideName = northwest ? "왼쪽 위" : "오른쪽 아래";
   const faceCount = event.width * (event.width + 1) / 2;
   const halfCount = n * (n - 1) / 2;
   const changedEdges = diffGridEdges(previous, grid);
@@ -488,10 +491,10 @@ function makeBetaFrame({ sign, event, index, total, grid, previous, previousVisi
   });
   const last = index === total - 1;
   const description = event.width === 1
-    ? `β₁이 먼저 반환되어 ${sideName} 바깥 모서리의 한 face가 strand가 되었습니다. 재귀는 이제 대각선 쪽으로 돌아옵니다.`
+    ? `${sideName}의 바깥 모서리 한 칸을 위의 고정표로 먼저 만들었습니다.`
     : last
-      ? `${sideName}의 β${event.width}가 반환되어 ${halfCount}개 face가 모두 strand가 되었습니다. 대각 interface는 바뀌지 않았습니다.`
-      : `β${event.width}가 반환되어 모서리 쪽 ${faceCount}개 face가 strand입니다. 앞서 완성된 strand의 라벨도 일관성을 위해 다시 조정될 수 있습니다.`;
+      ? `${sideName}의 ${halfCount}칸을 모두 만들었습니다. 대각선 칸은 바뀌지 않았습니다.`
+      : `모서리 쪽 ${faceCount}칸을 만들었습니다. 새 칸과 edge를 공유하면 먼저 만든 칸도 다시 맞춥니다.`;
 
   return makeFrame({
     phase: northwest ? "plus" : "minus",
@@ -506,12 +509,12 @@ function makeBetaFrame({ sign, event, index, total, grid, previous, previousVisi
     previousGrid: previous,
     primitives,
     edgeReasons,
-    title: `${northwest ? "northwest" : "southeast"} 생성 · 실제 재귀 반환`,
+    title: `${sideName} 영역 만들기`,
     description,
-    operation: `${sideName} · 반환 ${index + 1}/${total} · β${event.width}`,
-    change: `새 띠 ${event.width} faces · 새 edge ${newVisibleEdges.size} · 기존 edge ${readjustedEdges.size} 재조정`,
-    mapLabel: northwest ? "β̃⁺" : "β̃⁻",
-    mapNote: "corner → diagonal",
+    operation: `${sideName} · ${index + 1}/${total}번째 묶음`,
+    change: `새로 보인 칸 ${event.width}개 · 새 edge ${newVisibleEdges.size}개 · 기존 edge ${readjustedEdges.size}개 다시 맞춤`,
+    mapLabel: "한 칸씩",
+    mapNote: "모서리부터 대각선으로",
   });
 }
 
@@ -613,6 +616,7 @@ function render() {
 
   renderGrid(dom.sourceGrid, state.source, { target: false, frame, phaseIndex });
   renderGrid(dom.targetGrid, frame.grid, { target: true, frame, phaseIndex });
+  renderCornerExplanation();
   renderOperationDetails(frame);
   if (state.result) {
     renderInterface();
@@ -632,7 +636,7 @@ function render() {
   dom.resultBadge.classList.toggle("complete", Boolean(state.result && complete));
   const validInput = state.inputValidation.ok;
   dom.liveStatus.innerHTML = complete
-    ? `<span></span> E<sub>n</sub> ↔ D<sub>n</sub> · interface fixed`
+    ? `<span></span> 변환 완료 · 대각선 edge 유지`
     : validInput
       ? `<span></span> 입력 E<sub>n</sub> 유효`
       : `<span></span> 입력 E<sub>n</sub> 수정 필요`;
@@ -643,17 +647,17 @@ function render() {
 function renderSourceStatus(n) {
   const validation = state.inputValidation;
   dom.sourceTitle.innerHTML = validation.ok
-    ? `E<sub>${n}</sub> — all proper`
-    : `E<sub>${n}</sub> — input draft`;
+    ? `E<sub>${n}</sub> — 모든 칸 OK`
+    : `E<sub>${n}</sub> — 입력 중`;
   if (validation.ok) {
-    dom.sourceCheck.textContent = `${n * n} / ${n * n} proper`;
+    dom.sourceCheck.textContent = `${n * n} / ${n * n} 칸 OK`;
     dom.sourceCheck.classList.remove("invalid");
     return;
   }
   const missing = validation.totalEdges - validation.assignedEdges;
   dom.sourceCheck.textContent = validation.invalidFaces.length
-    ? `${validation.invalidFaces.length} faces 충돌`
-    : `${missing} edges 미입력`;
+    ? `${validation.invalidFaces.length}칸 색 중복`
+    : `${missing}개 edge 미입력`;
   dom.sourceCheck.classList.add("invalid");
 }
 
@@ -670,6 +674,84 @@ function renderEditor() {
   dom.edgeEditor.querySelectorAll("[data-edge-value]").forEach((button) => {
     button.disabled = !selected;
   });
+}
+
+function renderCornerExplanation() {
+  document.querySelectorAll(".pair-rule").forEach((row) => {
+    row.classList.remove("current");
+    row.removeAttribute("aria-current");
+  });
+
+  if (state.source.n < 2) {
+    dom.cornerStatus.textContent = "n=1에는 대각선 밖의 맨 왼쪽 위 칸이 없습니다.";
+    dom.cornerInput.textContent = "—";
+    dom.cornerLookup.textContent = "—";
+    dom.cornerFirstOutput.textContent = "—";
+    dom.cornerShape.textContent = "n≥2에서 사용";
+    dom.cornerExplanation.textContent = "n을 2 이상으로 바꾸면 현재 격자의 실제 계산을 보여줍니다.";
+    dom.cornerFlow.classList.add("unavailable");
+    return;
+  }
+
+  dom.cornerFlow.classList.remove("unavailable");
+  const tuple = faceTuple(state.source, 0, state.source.n - 1);
+  dom.cornerInput.innerHTML = cornerTupleHtml(tuple);
+  const values = Object.values(tuple);
+  const pairReady = tuple.W !== null && tuple.N !== null && tuple.W !== tuple.N;
+
+  if (!pairReady) {
+    dom.cornerStatus.textContent = "왼쪽·위 숫자를 서로 다르게 입력하면 표에서 바로 찾습니다.";
+    dom.cornerLookup.textContent = "계산 대기";
+    dom.cornerFirstOutput.textContent = "—";
+    dom.cornerShape.textContent = "입력 대기";
+    dom.cornerExplanation.textContent = "먼저 맨 왼쪽 위 칸의 왼쪽·위 edge를 완성하세요.";
+    return;
+  }
+
+  const mapped = alphaBasePair(tuple.W, tuple.N);
+  const pairKey = `${tuple.W}-${tuple.N}`;
+  document.querySelectorAll(".pair-rule").forEach((row) => {
+    const current = row.dataset.cornerPairs.split(",").includes(pairKey);
+    row.classList.toggle("current", current);
+    if (current) row.setAttribute("aria-current", "true");
+  });
+  dom.cornerLookup.innerHTML = `${cornerPairHtml(tuple.W, tuple.N)}<em>→</em>${cornerPairHtml(mapped.l, mapped.v)}`;
+
+  const proper = values.every((value) => value !== null) && new Set(values).size === 4;
+  if (!proper) {
+    dom.cornerStatus.textContent = "표에서 왼쪽·위 결과를 찾았습니다. 나머지 두 edge를 완성하세요.";
+    dom.cornerFirstOutput.textContent = "—";
+    dom.cornerShape.textContent = "오른쪽·아래 입력 대기";
+    dom.cornerExplanation.textContent = "오른쪽·아래 숫자까지 서로 다르게 입력되면 첫 선 모양이 정해집니다.";
+    return;
+  }
+
+  const first = { W: mapped.l, N: mapped.v, E: tuple.E, S: tuple.S };
+  const type = strandType(first);
+  dom.cornerStatus.textContent = "현재 입력의 맨 왼쪽 위 칸을 표에 넣은 결과입니다.";
+  dom.cornerFirstOutput.innerHTML = cornerTupleHtml(first);
+  dom.cornerShape.textContent = type === "turn" ? "꺾인 선 · ELBOW" : "곧은 선 · STRAIGHT";
+  if (type === "turn") {
+    dom.cornerExplanation.innerHTML = `새 왼쪽 <b>${mapped.l + 1}</b>은 아래 <b>${tuple.S + 1}</b>와 같고, 새 위 <b>${mapped.v + 1}</b>은 오른쪽 <b>${tuple.E + 1}</b>과 같습니다. 그래서 두 선이 꺾입니다.`;
+  } else {
+    dom.cornerExplanation.innerHTML = `새 왼쪽 <b>${mapped.l + 1}</b>은 오른쪽 <b>${tuple.E + 1}</b>과 같고, 새 위 <b>${mapped.v + 1}</b>은 아래 <b>${tuple.S + 1}</b>와 같습니다. 그래서 두 선이 곧게 이어집니다.`;
+  }
+}
+
+function cornerTupleHtml({ W, N, E, S }) {
+  return [
+    ["왼쪽", W], ["위", N], ["오른쪽", E], ["아래", S],
+  ].map(([label, value]) => `<span><b>${label}</b>${cornerColorHtml(value)}</span>`).join("");
+}
+
+function cornerPairHtml(left, top) {
+  return `<span>${cornerColorHtml(left)}${cornerColorHtml(top)}</span>`;
+}
+
+function cornerColorHtml(value) {
+  return value === null
+    ? `<i class="digit missing">·</i>`
+    : `<i class="digit v${value}">${value + 1}</i>`;
 }
 
 function inputFaceClass(x, y) {
@@ -707,15 +789,15 @@ function renderOperationDetails(frame) {
   }
   const bases = frame.primitives.filter(({ event }) => event.type === "alpha-base").length;
   const diamonds = frame.primitives.filter(({ event }) => event.type === "diamond").length;
-  dom.operationSummary.textContent = `이번 반환 내부 계산 · α-base ${bases}회 · diamond Φ ${diamonds}회`;
+  dom.operationSummary.textContent = `이번 단계 자세히 · 한 칸 표 ${bases}번 · 이웃과 맞추기 ${diamonds}번`;
   const chips = frame.primitives.map(({ event }, index) => {
     const label = event.type === "alpha-base"
-      ? `α-base · row ${event.rowOffset + 1} · shift ${formatLabel(event.shift)}`
-      : `Φ · rows ${event.rowOffset + 1}/${event.rowOffset + 2} · width ${event.width}`;
+      ? `한 칸 표 적용 · ${event.rowOffset + 1}번째 줄`
+      : `이웃 칸과 공유 edge 맞추기 · ${event.rowOffset + 1}/${event.rowOffset + 2}번째 줄`;
     return `<span class="trace-chip">${index + 1}. ${label}</span>`;
   }).join("");
 
-  let selectedHtml = `<p class="edge-reason">오른쪽의 <b>이전값→새값</b> edge를 누르면 그 edge를 바꾼 내부 호출을 표시합니다.</p>`;
+  let selectedHtml = `<p class="edge-reason">오른쪽의 <b>이전값→새값</b> edge를 누르면 왜 다시 바뀌었는지 표시합니다.</p>`;
   if (state.explainedEdge && frame.activeEdges.has(state.explainedEdge)) {
     const reasons = frame.edgeReasons.get(state.explainedEdge) ?? [];
     const oldValue = gridEdgeValue(frame.previousGrid, state.explainedEdge);
@@ -723,14 +805,14 @@ function renderOperationDetails(frame) {
     const last = reasons.at(-1);
     const cause = last
       ? last.event.type === "alpha-base"
-        ? `마지막 원인은 α-base의 shift ${formatLabel(last.event.shift)}입니다.`
-        : `마지막 원인은 width ${last.event.width}의 diamond Φ 호출입니다.`
-      : "이 checkpoint의 전체 α 계산 결과로 갱신되었습니다.";
-    selectedHtml = `<p class="edge-reason"><b>${edgeDisplayName(state.explainedEdge)}</b> · ${oldValue + 1}→${newValue + 1}<br>${reasons.length}번의 내부 갱신을 거쳤고, ${cause}</p>`;
+        ? `마지막으로 한 칸 고정표를 적용했습니다.`
+        : `마지막으로 새 이웃과 공유 edge를 맞췄습니다.`
+      : "이번 묶음의 칸들을 함께 맞추면서 갱신했습니다.";
+    selectedHtml = `<p class="edge-reason"><b>${edgeDisplayName(state.explainedEdge)}</b> · ${oldValue + 1}→${newValue + 1}<br>${reasons.length}번 바뀌었고, ${cause}</p>`;
   }
 
   dom.operationDetail.innerHTML = `
-    <p>β의 더 작은 tail이 먼저 반환된 뒤 α가 새 띠와 이미 완성된 바깥 block을 함께 맞춥니다. 금색은 새로 드러난 변경, 보라색은 기존 strand의 재조정입니다. 라벨이나 turn/straight 모양이 바뀔 수 있지만 대각 interface는 그대로입니다.</p>
+    <p>먼저 바깥 모서리 한 칸을 고정표로 만듭니다. 다음 칸을 붙일 때 공유 edge가 달라지면 먼저 만든 칸도 함께 다시 맞춥니다. 금색은 새로 보인 edge, 보라색은 다시 맞춘 edge입니다.</p>
     <div class="trace-sequence">${chips}</div>
     ${selectedHtml}`;
 }
@@ -755,18 +837,18 @@ function renderUnavailableDetails() {
 
 function renderTargetHeader(frame, n) {
   if (!state.result) {
-    dom.targetEyebrow.textContent = "WORKING CANVAS";
-    dom.targetTitle.textContent = "유효한 Eₙ 입력을 기다리는 중";
-    dom.targetCheck.textContent = "변환 대기";
+    dom.targetEyebrow.textContent = "결과";
+    dom.targetTitle.textContent = "입력이 완성되기를 기다리는 중";
+    dom.targetCheck.textContent = "기다리는 중";
     dom.targetCheck.classList.add("pending");
     return;
   }
   const copy = {
-    input: ["WORKING CANVAS", "출력 canvas — 아직 비어 있음", "구성 대기"],
-    interface: ["FIXED INTERFACE", "대각 interface I — 복사 완료", `${4 * n} edges fixed`],
-    plus: ["ACTUAL RECURSION · NW", "β̃⁺ 작업 상태", frame.operation],
-    minus: ["ACTUAL RECURSION · SE", "β̃⁻ 작업 상태", frame.operation],
-    complete: ["TARGET", `D<sub>${n}</sub> — diagonal proper + strands`, `${n} diagonal proper · ${n * n - n} strand`],
+    input: ["결과", "오른쪽 결과 — 아직 비어 있음", "기다리는 중"],
+    interface: ["대각선 칸", "대각선 칸 — 그대로 복사 완료", `${4 * n}개 edge 유지`],
+    plus: ["왼쪽 위 만드는 중", "왼쪽 위 영역 작업 상태", frame.operation],
+    minus: ["오른쪽 아래 만드는 중", "오른쪽 아래 영역 작업 상태", frame.operation],
+    complete: ["완성된 결과", `D<sub>${n}</sub> — 모든 칸 완성`, `${n * n}칸 완성`],
   }[frame.phase];
   dom.targetEyebrow.textContent = copy[0];
   dom.targetTitle.innerHTML = copy[1];
@@ -791,10 +873,11 @@ function renderGrid(svg, grid, { target, frame, phaseIndex }) {
       const sign = region === "plus" ? "+" : region === "minus" ? "-" : null;
       const activeFace = frame.activeSide === sign && frame.activeRows.includes(rowOffset);
       const inputClass = target ? "" : inputFaceClass(x, y);
+      const firstCorner = !target && grid.n > 1 && x === 0 && y === grid.n - 1;
       const sx = margin + x * cell;
       const sy = margin + (grid.n - 1 - y) * cell;
       svg.append(svgEl("rect", {
-        class: `face-region ${region} ${visible ? "" : "hidden"} ${activeFace ? "process-active" : ""} ${inputClass}`,
+        class: `face-region ${region} ${visible ? "" : "hidden"} ${activeFace ? "process-active" : ""} ${inputClass} ${firstCorner ? "first-corner" : ""}`,
         x: sx + 1, y: sy + 1, width: cell - 2, height: cell - 2, rx: Math.min(12, cell * .08),
       }));
 
@@ -808,6 +891,7 @@ function renderGrid(svg, grid, { target, frame, phaseIndex }) {
       if (x === y && (!target || visible) && phaseIndex >= 1 && cell > 130) {
         addText(svg, cx, cy + 3, "🔒", "lock-text");
       }
+      if (firstCorner && cell > 90) addText(svg, cx, cy + 3, "첫 칸", "first-corner-label");
     }
   }
 

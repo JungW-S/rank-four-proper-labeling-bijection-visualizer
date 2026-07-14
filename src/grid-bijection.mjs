@@ -206,6 +206,16 @@ function orientationRowsEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+export function alphaBasePair(l, v) {
+  if (!ELEMENTS.includes(l) || !ELEMENTS.includes(v) || l === v) {
+    throw new Error("한 칸 표에는 서로 다른 두 색이 필요합니다.");
+  }
+  const h = add(l, v);
+  const shift = DEFAULT_ORDER.find((candidate) => omega(h, candidate) === 1);
+  if (shift === undefined) throw new Error("한 칸 표의 shift를 찾지 못했습니다.");
+  return { l: add(l, shift), v: add(v, shift), shift };
+}
+
 export function extractHalf(grid, sign) {
   const rows = [];
   const r = grid.n - 1;
@@ -288,16 +298,15 @@ function alpha(seed, rows, trace, context = {}) {
   const sourceRows = cloneRows(rows);
   if (r === 1) {
     const [{ l, v }] = rows[0];
-    const h = add(l, v);
-    const shift = DEFAULT_ORDER.find((candidate) => omega(h, candidate) === 1);
-    const result = [[{ l: add(l, shift), v: add(v, shift) }]];
+    const mapped = alphaBasePair(l, v);
+    const result = [[{ l: mapped.l, v: mapped.v }]];
     trace.push({
       type: "alpha-base",
       side: context.side,
       width: 1,
       depth: context.depth ?? 0,
       rowOffset,
-      shift,
+      shift: mapped.shift,
       sourceRows,
       targetRows: cloneRows(result),
     });
