@@ -216,6 +216,176 @@ export function alphaBasePair(l, v) {
   return { l: add(l, shift), v: add(v, shift), shift };
 }
 
+export function colorPairKind(first, second) {
+  if (!ELEMENTS.includes(first) || !ELEMENTS.includes(second) || first === second) {
+    throw new Error("색 종류를 정하려면 서로 다른 두 색이 필요합니다.");
+  }
+  return add(first, second);
+}
+
+export function secondCornerStep(source, result) {
+  if (!source || source.n < 3) throw new Error("두 번째 묶음에는 n≥3 격자가 필요합니다.");
+  const checkpoints = result?.plus?.trace?.filter(({ type, width }) => type === "beta-complete" && width === 2) ?? [];
+  if (checkpoints.length !== 1) throw new Error("두 번째 묶음의 계산 기록을 찾지 못했습니다.");
+
+  const checkpoint = checkpoints[0];
+  if (checkpoint.rowOffset !== source.n - 3
+      || checkpoint.sourceRows.length !== 2
+      || checkpoint.sourceRows[0].length !== 2
+      || checkpoint.sourceRows[1].length !== 1
+      || checkpoint.targetRows.length !== 2
+      || checkpoint.targetRows[0].length !== 2
+      || checkpoint.targetRows[1].length !== 1) {
+    throw new Error("두 번째 묶음의 계산 기록 모양이 잘못되었습니다.");
+  }
+
+  const a = faceTuple(source, 0, source.n - 1);
+  const down = faceTuple(source, 0, source.n - 2);
+  const right = faceTuple(source, 1, source.n - 1);
+  const expectedSource = [[
+    { l: down.W, v: down.N },
+    { l: right.W, v: right.N },
+  ], [{ l: a.W, v: a.N }]];
+  if (!orientationRowsEqual(checkpoint.sourceRows, expectedSource)) {
+    throw new Error("두 번째 묶음이 현재 A, D, R 입력과 맞지 않습니다.");
+  }
+
+  const firstCheckpoint = result.plus.trace.find(({ type, width }) => type === "beta-complete" && width === 1);
+  if (!firstCheckpoint) throw new Error("첫 번째 칸의 계산 기록을 찾지 못했습니다.");
+  const [downPair, rightPair] = checkpoint.targetRows[0];
+  const [aPair] = checkpoint.targetRows[1];
+  const downShift = add(down.W, downPair.l);
+  const rightShift = add(right.W, rightPair.l);
+  if (add(down.N, downPair.v) !== downShift || add(right.N, rightPair.v) !== rightShift) {
+    throw new Error("D 또는 R의 두 edge에 같은 색 교환이 적용되지 않았습니다.");
+  }
+
+  const downAfter = { ...down, W: downPair.l, N: downPair.v };
+  const rightAfter = { ...right, W: rightPair.l, N: rightPair.v };
+  const aBefore = {
+    W: firstCheckpoint.targetRows[0][0].l,
+    N: firstCheckpoint.targetRows[0][0].v,
+    E: a.E,
+    S: a.S,
+  };
+  const aAfter = { W: aPair.l, N: aPair.v, E: rightPair.l, S: downPair.v };
+  const aPrepared = {
+    W: add(a.W, downShift),
+    N: add(a.N, rightShift),
+  };
+  const aRemapped = alphaBasePair(aPrepared.W, aPrepared.N);
+  if (aRemapped.l !== aAfter.W || aRemapped.v !== aAfter.N) {
+    throw new Error("D와 R의 교환 뒤 A에 적용한 한 칸 표가 계산 기록과 맞지 않습니다.");
+  }
+
+  return {
+    referencePair: [a.W, a.S],
+    referenceKind: colorPairKind(a.W, a.S),
+    a: { source: a, before: aBefore, prepared: aPrepared, after: aAfter },
+    down: {
+      kind: colorPairKind(down.W, down.N),
+      shift: downShift,
+      before: down,
+      after: downAfter,
+    },
+    right: {
+      kind: colorPairKind(right.W, right.N),
+      shift: rightShift,
+      before: right,
+      after: rightAfter,
+    },
+    shared: {
+      south: { before: a.S, after: downAfter.N },
+      east: { before: a.E, after: rightAfter.W },
+    },
+  };
+}
+
+export function secondSoutheastStep(source, result) {
+  if (!source || source.n < 3) throw new Error("오른쪽 아래 두 번째 묶음에는 n≥3 격자가 필요합니다.");
+  const checkpoints = result?.minus?.trace?.filter(({ type, width }) => type === "beta-complete" && width === 2) ?? [];
+  if (checkpoints.length !== 1) throw new Error("오른쪽 아래 두 번째 묶음의 계산 기록을 찾지 못했습니다.");
+
+  const checkpoint = checkpoints[0];
+  if (checkpoint.rowOffset !== source.n - 3
+      || checkpoint.sourceRows.length !== 2
+      || checkpoint.sourceRows[0].length !== 2
+      || checkpoint.sourceRows[1].length !== 1
+      || checkpoint.targetRows.length !== 2
+      || checkpoint.targetRows[0].length !== 2
+      || checkpoint.targetRows[1].length !== 1) {
+    throw new Error("오른쪽 아래 두 번째 묶음의 계산 기록 모양이 잘못되었습니다.");
+  }
+
+  const a = faceTuple(source, source.n - 1, 0);
+  const left = faceTuple(source, source.n - 2, 0);
+  const up = faceTuple(source, source.n - 1, 1);
+  const expectedSource = [[
+    { l: left.S, v: left.E },
+    { l: up.S, v: up.E },
+  ], [{ l: a.S, v: a.E }]];
+  if (!orientationRowsEqual(checkpoint.sourceRows, expectedSource)) {
+    throw new Error("오른쪽 아래 두 번째 묶음이 현재 A, L, U 입력과 맞지 않습니다.");
+  }
+
+  const firstCheckpoint = result.minus.trace.find(({ type, width }) => type === "beta-complete" && width === 1);
+  if (!firstCheckpoint) throw new Error("오른쪽 아래 첫 번째 칸의 계산 기록을 찾지 못했습니다.");
+  const [leftPair, upPair] = checkpoint.targetRows[0];
+  const [aPair] = checkpoint.targetRows[1];
+  const leftShift = add(left.S, leftPair.l);
+  const upShift = add(up.S, upPair.l);
+  if (add(left.E, leftPair.v) !== leftShift || add(up.E, upPair.v) !== upShift) {
+    throw new Error("L 또는 U의 두 edge에 같은 색 교환이 적용되지 않았습니다.");
+  }
+
+  const cornerShiftFromSouth = add(add(a.S, leftShift), aPair.l);
+  const cornerShiftFromEast = add(add(a.E, upShift), aPair.v);
+  if (cornerShiftFromSouth !== cornerShiftFromEast || cornerShiftFromSouth === 0) {
+    throw new Error("A를 마무리하는 색 교환이 두 edge에서 일치하지 않습니다.");
+  }
+
+  const leftAfter = { ...left, S: leftPair.l, E: leftPair.v };
+  const upAfter = { ...up, S: upPair.l, E: upPair.v };
+  const aBefore = {
+    ...a,
+    S: firstCheckpoint.targetRows[0][0].l,
+    E: firstCheckpoint.targetRows[0][0].v,
+  };
+  const aPrepared = {
+    W: leftAfter.E,
+    N: upAfter.S,
+    S: add(a.S, leftShift),
+    E: add(a.E, upShift),
+  };
+  const aAfter = { W: leftPair.v, N: upPair.l, S: aPair.l, E: aPair.v };
+  const aRemapped = alphaBasePair(aPrepared.S, aPrepared.E);
+  if (aRemapped.l !== aAfter.S || aRemapped.v !== aAfter.E) {
+    throw new Error("L·U 동시 연결 뒤 A에 적용한 한 칸 표가 계산 기록과 맞지 않습니다.");
+  }
+
+  return {
+    referencePair: [a.W, a.S],
+    referenceKind: colorPairKind(a.W, a.S),
+    a: { source: a, before: aBefore, prepared: aPrepared, after: aAfter, shift: cornerShiftFromSouth },
+    left: {
+      kind: colorPairKind(left.S, left.E),
+      shift: leftShift,
+      before: left,
+      after: leftAfter,
+    },
+    up: {
+      kind: colorPairKind(up.S, up.E),
+      shift: upShift,
+      before: up,
+      after: upAfter,
+    },
+    shared: {
+      west: { before: a.W, after: leftAfter.E },
+      north: { before: a.N, after: upAfter.S },
+    },
+  };
+}
+
 export function extractHalf(grid, sign) {
   const rows = [];
   const r = grid.n - 1;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   alphaBasePair,
+  colorPairKind,
   cloneGrid,
   createGrid,
   decodeDraftGrid,
@@ -12,6 +13,8 @@ import {
   interfaceEquals,
   randomEGrid,
   replayHalfTrace,
+  secondCornerStep,
+  secondSoutheastStep,
   strandType,
   transformDtoE,
   transformEtoD,
@@ -41,6 +44,10 @@ const V = [0, 1, 2, 3];
     assert.deepEqual([recovered.l, recovered.v], [l, v]);
   }
   assert.throws(() => alphaBasePair(0, 0));
+  assert.equal(colorPairKind(0, 1), 1);
+  assert.equal(colorPairKind(0, 2), 2);
+  assert.equal(colorPairKind(0, 3), 3);
+  assert.throws(() => colorPairKind(2, 2));
 }
 
 {
@@ -86,7 +93,38 @@ const V = [0, 1, 2, 3];
   assert.deepEqual(firstCheckpoint.targetRows[0][0], { l: firstMapped.l, v: firstMapped.v });
   const finalCorner = faceTuple(fixtureResult.target, 0, 2);
   assert.notDeepEqual([finalCorner.W, finalCorner.N], [firstMapped.l, firstMapped.v]);
+
+  const second = secondCornerStep(fixture, fixtureResult);
+  assert.deepEqual(second.referencePair, [0, 1]);
+  assert.equal(second.referenceKind, 1);
+  assert.deepEqual([second.down.kind, second.down.shift], [1, 2]);
+  assert.deepEqual([second.down.after.W, second.down.after.N], [2, 3]);
+  assert.deepEqual([second.right.kind, second.right.shift], [2, 3]);
+  assert.deepEqual([second.right.after.W, second.right.after.N], [0, 2]);
+  assert.deepEqual(second.shared, {
+    south: { before: 1, after: 3 },
+    east: { before: 3, after: 0 },
+  });
+  assert.deepEqual(second.a.after, { W: 3, N: 0, E: 0, S: 3 });
+  assert(strandType(second.a.after));
+  assert(strandType(second.down.after));
+  assert(strandType(second.right.after));
+  assert.throws(() => secondCornerStep(randomEGrid(2, () => 0), transformEtoD(randomEGrid(2, () => 0))));
+  assert.throws(() => secondSoutheastStep(randomEGrid(2, () => 0), transformEtoD(randomEGrid(2, () => 0))));
+
+  const widerFixture = randomEGrid(4, () => 0);
+  const widerResult = transformEtoD(widerFixture);
+  const widerSecond = secondCornerStep(widerFixture, widerResult);
+  assert.notDeepEqual(widerSecond.a.after, faceTuple(widerResult.target, 0, 3));
+  assert.notDeepEqual(widerSecond.down.after, faceTuple(widerResult.target, 0, 2));
+  assert.notDeepEqual(widerSecond.right.after, faceTuple(widerResult.target, 1, 3));
 }
+
+const SECOND_RULE_SHIFTS = Object.freeze({
+  1: Object.freeze({ 1: 2, 2: 3, 3: 2 }),
+  2: Object.freeze({ 1: 3, 2: 1, 3: 1 }),
+  3: Object.freeze({ 1: 2, 2: 1, 3: 1 }),
+});
 
 for (let n = 1; n <= 6; n += 1) {
   for (let sample = 0; sample < 250; sample += 1) {
@@ -101,6 +139,53 @@ for (let n = 1; n <= 6; n += 1) {
       const mapped = alphaBasePair(corner.W, corner.N);
       const firstCheckpoint = result.plus.trace.find(({ type, width }) => type === "beta-complete" && width === 1);
       assert.deepEqual(firstCheckpoint.targetRows[0][0], { l: mapped.l, v: mapped.v });
+    }
+    if (n >= 3) {
+      const second = secondCornerStep(E, result);
+      const checkpoint = result.plus.trace.find(({ type, width }) => type === "beta-complete" && width === 2);
+      assert.equal(checkpoint.rowOffset, n - 3);
+      assert.deepEqual(checkpoint.targetRows[0][0], { l: second.down.after.W, v: second.down.after.N });
+      assert.deepEqual(checkpoint.targetRows[0][1], { l: second.right.after.W, v: second.right.after.N });
+      assert.deepEqual(checkpoint.targetRows[1][0], { l: second.a.after.W, v: second.a.after.N });
+      assert.equal(second.down.shift, SECOND_RULE_SHIFTS[second.down.kind][second.referenceKind]);
+      assert.equal(second.right.shift, SECOND_RULE_SHIFTS[second.right.kind][second.referenceKind]);
+      assert.equal(second.a.after.S, second.down.after.N);
+      assert.equal(second.a.after.E, second.right.after.W);
+      assert.equal(second.a.prepared.W, second.a.source.W ^ second.down.shift);
+      assert.equal(second.a.prepared.N, second.a.source.N ^ second.right.shift);
+      const remappedA = alphaBasePair(second.a.prepared.W, second.a.prepared.N);
+      assert.deepEqual([remappedA.l, remappedA.v], [second.a.after.W, second.a.after.N]);
+      assert(strandType(second.a.after));
+      assert(strandType(second.down.after));
+      assert(strandType(second.right.after));
+
+      const southeast = secondSoutheastStep(E, result);
+      const southeastCheckpoint = result.minus.trace.find(({ type, width }) => type === "beta-complete" && width === 2);
+      assert.equal(southeastCheckpoint.rowOffset, n - 3);
+      assert.deepEqual(southeast.referencePair, [southeast.a.source.W, southeast.a.source.S]);
+      assert.equal(southeast.referenceKind, colorPairKind(...southeast.referencePair));
+      assert.equal(southeast.left.shift, SECOND_RULE_SHIFTS[southeast.left.kind][southeast.referenceKind]);
+      assert.equal(southeast.up.shift, SECOND_RULE_SHIFTS[southeast.up.kind][southeast.referenceKind]);
+      assert.deepEqual(southeastCheckpoint.targetRows[0][0], { l: southeast.left.after.S, v: southeast.left.after.E });
+      assert.deepEqual(southeastCheckpoint.targetRows[0][1], { l: southeast.up.after.S, v: southeast.up.after.E });
+      assert.deepEqual(southeastCheckpoint.targetRows[1][0], { l: southeast.a.after.S, v: southeast.a.after.E });
+      assert.equal(southeast.a.after.W, southeast.left.after.E);
+      assert.equal(southeast.a.after.N, southeast.up.after.S);
+      assert.equal(southeast.shared.west.after, southeast.a.after.W);
+      assert.equal(southeast.shared.north.after, southeast.a.after.N);
+      assert.deepEqual(southeast.a.prepared, {
+        W: southeast.left.after.E,
+        N: southeast.up.after.S,
+        S: southeast.a.source.S ^ southeast.left.shift,
+        E: southeast.a.source.E ^ southeast.up.shift,
+      });
+      const southeastRemappedA = alphaBasePair(southeast.a.prepared.S, southeast.a.prepared.E);
+      assert.deepEqual([southeastRemappedA.l, southeastRemappedA.v], [southeast.a.after.S, southeast.a.after.E]);
+      assert.equal(southeast.a.after.S, southeast.a.source.S ^ southeast.left.shift ^ southeast.a.shift);
+      assert.equal(southeast.a.after.E, southeast.a.source.E ^ southeast.up.shift ^ southeast.a.shift);
+      assert(strandType(southeast.a.after));
+      assert(strandType(southeast.left.after));
+      assert(strandType(southeast.up.after));
     }
     const recovered = transformDtoE(result.target);
     assert(gridsEqual(E, recovered), `round trip failed at n=${n}`);
