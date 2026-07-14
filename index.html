@@ -33,6 +33,7 @@
             <option value="3" selected>n = 3</option>
             <option value="4">n = 4</option>
             <option value="5">n = 5</option>
+            <option value="6">n = 6</option>
           </select>
         </label>
         <div class="control-group grow">
@@ -64,7 +65,7 @@
             <div id="operationDetail"></div>
           </details>
         </div>
-        <div class="step-track" id="stepTrack" role="tablist" aria-label="전역 bijection 단계"></div>
+        <div class="step-track" id="stepTrack" role="group" aria-label="전체 만드는 순서"></div>
       </section>
 
       <main>
@@ -113,7 +114,19 @@
           </article>
         </section>
 
-        <section class="corner-explainer panel" aria-labelledby="cornerExplainerTitle">
+        <section class="stage-explainer panel" id="stageExplainer" aria-labelledby="stageExplainerTitle">
+          <header class="stage-explainer-header">
+            <div>
+              <p class="eyebrow" id="stageEyebrow">현재 단계</p>
+              <h2 id="stageExplainerTitle">지금 하는 일을 읽는 중입니다</h2>
+              <p id="stageSummary">현재 화면에서 바뀌는 숫자와 이유를 보여줍니다.</p>
+            </div>
+            <span class="stage-badge" id="stageBadge">준비 중</span>
+          </header>
+          <div class="stage-body" id="stageBody"></div>
+        </section>
+
+        <section class="corner-explainer panel" id="cornerExplainer" aria-labelledby="cornerExplainerTitle">
           <header class="corner-explainer-header">
             <div>
               <p class="eyebrow">맨 왼쪽 위 한 칸</p>
@@ -182,6 +195,78 @@
             <div><b>처음 결정</b><span>이 한 칸 안의 네 숫자만 사용합니다. 주변 칸은 보지 않습니다.</span></div>
             <div><b>나중 다시 맞춤</b><span>다른 칸을 만들 때 공유 edge가 바뀌면 이 칸도 보라색으로 다시 조정될 수 있습니다.</span></div>
           </div>
+        </section>
+
+        <section class="neighbor-explainer panel" id="neighborExplainer" aria-labelledby="neighborExplainerTitle">
+          <header class="corner-explainer-header">
+            <div>
+              <p class="eyebrow" id="neighborEyebrow">2단계 · 세 칸 계산</p>
+              <h2 id="neighborExplainerTitle">D·R을 함께 정하고 A를 마무리</h2>
+              <p id="neighborIntro"><b>원래 입력 A·D·R을 다시 읽습니다.</b> D와 R은 같은 가운데 계산에서 동시에 정해지고, 그 결과를 공유하도록 A를 마무리합니다.</p>
+            </div>
+            <span class="corner-scope" id="neighborScope">n≥3 · 두 번째 단계</span>
+          </header>
+
+          <article class="neighbor-live-card" id="neighborLive">
+            <div class="neighbor-card-heading">
+              <p class="corner-status" id="neighborStatus">현재 입력을 읽는 중입니다.</p>
+              <div class="neighbor-position-key" id="neighborPositionKey" aria-label="A D R 위치">
+                <span id="neighborPositionDiagram"><b>A</b><b>R</b><b>D</b></span>
+                <small id="neighborPositionText">A 첫 칸 · D 아래 · R 오른쪽</small>
+              </div>
+            </div>
+
+            <article class="neighbor-rule-card neighbor-rule-evidence">
+              <header>
+                <div><span>근거표</span><h3>숫자 바꾸기를 고르는 표</h3></div>
+                <p id="neighborRuleDescription"><b>A의 표시된 두 숫자로 열</b>을 고르고, <b>D/R의 표시된 두 숫자로 행</b>을 고릅니다. 만나는 칸이 바로 적용할 바꾸기입니다.</p>
+              </header>
+              <table class="neighbor-rule-table" aria-label="D와 R의 숫자 바꾸기 선택 근거표">
+                <thead>
+                  <tr><th class="rule-axis"><b id="neighborRuleAxis">D/R 행 ↓</b><small>A 열 →</small></th><th data-kind-column="1">1·2<br>또는 3·4</th><th data-kind-column="2">1·3<br>또는 2·4</th><th data-kind-column="3">1·4<br>또는 2·3</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th data-kind-row="1">1·2<br>또는 3·4</th><td data-next-rule="1-1"><b>1↔3</b><small>2↔4</small></td><td data-next-rule="1-2"><b>1↔4</b><small>2↔3</small></td><td data-next-rule="1-3"><b>1↔3</b><small>2↔4</small></td></tr>
+                  <tr><th data-kind-row="2">1·3<br>또는 2·4</th><td data-next-rule="2-1"><b>1↔4</b><small>2↔3</small></td><td data-next-rule="2-2"><b>1↔2</b><small>3↔4</small></td><td data-next-rule="2-3"><b>1↔2</b><small>3↔4</small></td></tr>
+                  <tr><th data-kind-row="3">1·4<br>또는 2·3</th><td data-next-rule="3-1"><b>1↔3</b><small>2↔4</small></td><td data-next-rule="3-2"><b>1↔2</b><small>3↔4</small></td><td data-next-rule="3-3"><b>1↔2</b><small>3↔4</small></td></tr>
+                </tbody>
+              </table>
+            </article>
+
+            <div class="neighbor-simple-steps">
+              <section class="neighbor-simple-step down-step">
+                <header id="neighborFirstHeader"><b>D</b><div><h3>D쪽 계산</h3><span>R과 같은 시점에 계산</span></div></header>
+                <div id="neighborDownStep"></div>
+              </section>
+              <section class="neighbor-simple-step right-step">
+                <header id="neighborSecondHeader"><b>R</b><div><h3>R쪽 계산</h3><span>D와 같은 시점에 계산</span></div></header>
+                <div id="neighborRightStep"></div>
+              </section>
+              <section class="neighbor-simple-step a-step">
+                <header id="neighborAHeader"><b>A</b><div><h3>공유 변을 반영해 A 마무리</h3><span>D는 A의 왼쪽, R은 A의 위쪽에만 반영</span></div></header>
+                <div id="neighborAStep"></div>
+              </section>
+            </div>
+
+            <p class="neighbor-explanation" id="neighborExplanation">입력을 완성하면 현재 숫자로 세 줄을 계산합니다.</p>
+          </article>
+
+          <details class="neighbor-extra-details">
+            <summary>이전 단계와 비교 보기</summary>
+            <div class="neighbor-extra-grid">
+              <article class="neighbor-comparison" aria-label="첫 번째 결과와 두 번째 결과 비교">
+                <div class="neighbor-state-card before">
+                    <h4><b>1</b><span>1단계 결과</span><small id="neighborBeforeLabel">A 한 칸만 완성</small></h4>
+                  <div class="neighbor-state-diagram" id="neighborBeforeDiagram"></div>
+                </div>
+                <div class="neighbor-state-arrow"><b>→</b><span>세 칸 계산</span></div>
+                <div class="neighbor-state-card after">
+                    <h4><b>2</b><span>2단계 결과</span><small id="neighborAfterLabel">A·D·R 완성</small></h4>
+                  <div class="neighbor-state-diagram" id="neighborAfterDiagram"></div>
+                </div>
+              </article>
+            </div>
+          </details>
         </section>
 
         <details class="proof-drawer panel" hidden aria-hidden="true">
@@ -291,6 +376,7 @@
       </footer>
     </div>
 
+    <p class="sr-only" id="a11yStatus" role="status" aria-live="polite" aria-atomic="true"></p>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./src/app.mjs"></script>
   </body>
